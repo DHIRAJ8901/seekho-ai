@@ -49,8 +49,9 @@ app.post("/api/chat", rateLimit, async (req, res) => {
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(response.status).json({ error: data.error?.message || "API error" });
-    }
+  console.log("ANTHROPIC ERROR:", JSON.stringify(data));
+  return res.status(response.status).json(data);
+}
 
     res.json(data);
   } catch (err) {
