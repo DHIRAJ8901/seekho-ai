@@ -2,18 +2,24 @@ const express = require("express");
 const cors = require("cors");
 
 const app = express();
+
+// ─── CORS — allow all origins (Claude artifacts, any frontend) ───
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+app.options("*", cors());
 app.use(express.json({ limit: "10mb" }));
-app.use(cors());
 
 // ─── Rate limiting (simple in-memory) ───
 const userCalls = {};
-const LIMIT_PER_HOUR = 20; // free tier: 20 calls/hour per IP
+const LIMIT_PER_HOUR = 20;
 
 function rateLimit(req, res, next) {
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
   const now = Date.now();
   if (!userCalls[ip]) userCalls[ip] = [];
-  // Remove calls older than 1 hour
   userCalls[ip] = userCalls[ip].filter(t => now - t < 60 * 60 * 1000);
   if (userCalls[ip].length >= LIMIT_PER_HOUR) {
     return res.status(429).json({ error: "Rate limit exceeded. Try again in an hour." });
@@ -49,9 +55,8 @@ app.post("/api/chat", rateLimit, async (req, res) => {
     const data = await response.json();
 
     if (!response.ok) {
-  console.log("ANTHROPIC ERROR:", JSON.stringify(data));
-  return res.status(response.status).json(data);
-}
+      return res.status(response.status).json({ error: data.error?.message || "API error" });
+    }
 
     res.json(data);
   } catch (err) {
